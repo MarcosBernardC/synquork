@@ -7,9 +7,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# AQUÍ ESTABA EL ERROR: Necesitas importar la función
-from core.scanner import get_registered_assets
-from core.telemetry import get_last_commit_info  # <--- AÑADE ESTA LÍNEA
+from core.scanner import get_registered_assets, deep_scan
+from core.telemetry import get_last_commit_info 
 
 class SynquorkOrchestrator:
     def __init__(self):
@@ -79,7 +78,7 @@ class SynquorkOrchestrator:
 
     def run_tui(self):
         while True:
-            print("\033[H\033[J", end="") 
+            print("\033[H\033[J", end="")
             print(f"\n{'═'*50}")
             print(f"        SYNKORK TUI - BERNARD LAB")
             print(f"{'═'*50}")
@@ -88,13 +87,24 @@ class SynquorkOrchestrator:
                 print(f" [{uid}] {data['title'].ljust(25)}")
 
             print(f"{'═'*50}")
-            print(" [S] Stats generales  [Q] Salir")
+            # Cambiamos la leyenda para reflejar el nuevo comando
+            print(" [S] Deep Scan (Sync)  [T] Telemetry  [Q] Salir") 
             print(f"{'═'*50}")
-            
+
             choice = input("\nID para gestionar > ").strip().upper()
-            if choice == 'Q': break
-            elif choice == 'S': self.show_stats()
-            elif choice in self.assets: self.inspect_asset(choice)
+            
+            if choice == 'Q': 
+                break
+            elif choice == 'S': 
+                # Ejecuta el escaneo físico y actualiza el diccionario en memoria
+                print("\n🔍 Iniciando escaneo de laboratorios...")
+                self.assets = deep_scan() 
+                input("\nScan completo. Presiona Enter para refrescar lista...")
+            elif choice == 'T': 
+                # Movimos Telemetry a 'T' para liberar la 'S'
+                self.show_stats()
+            elif choice in self.assets: 
+                self.inspect_asset(choice)
 
 
 if __name__ == "__main__":
