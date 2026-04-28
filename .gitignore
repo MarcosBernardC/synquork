@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.venv/
+venv/
+ENV/
+
+# OS generated files
+.DS_Store
+.directory
+*.swp
+*.tmp
+
+# Synquork Local Data (Sensible)
+*.log
+config_local.yaml
