@@ -17,3 +17,6 @@ ENV/
 # Synquork Local Data (Sensible)
 *.log
 config_local.yaml
+
+config/registry.json
+**/__pycache__/
