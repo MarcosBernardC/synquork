@@ -7,7 +7,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+# AQUÍ ESTABA EL ERROR: Necesitas importar la función
 from core.scanner import get_registered_assets
+from core.telemetry import get_last_commit_info  # <--- AÑADE ESTA LÍNEA
 
 class SynquorkOrchestrator:
     def __init__(self):
@@ -55,15 +57,24 @@ class SynquorkOrchestrator:
             if op == 'b':
                 break
 
-    # ... (show_stats y run_tui se mantienen igual que en la versión anterior) ...
+# ... (show_stats y run_tui se mantienen igual que en la versión anterior) ...
     def show_stats(self):
         print("\033[H\033[J", end="")
-        print(f"\n{'═'*50}")
-        print(f"        ESTADÍSTICAS DEL LABORATORIO")
-        print(f"{'═'*50}")
+        print(f"\n{'═'*80}")
+        print(f"        TELEMETRÍA DE ACTIVOS - ÚLTIMOS LOGS")
+        print(f"{'═'*80}")
+        
+        # Cabecera de la tabla
+        print(f" {'ID':<6} | {'PROYECTO':<15} | {'HASH':<8} | {'FECHA':<10} | {'LOG'}")
+        print(f"{'─'*80}")
+
         for uid, data in self.assets.items():
-            print(f" [{uid}] {data['title'].ljust(25)} | OK")
-        print(f"{'═'*50}")
+            path = data['path']
+            # Llamamos a la telemetría real
+            info = get_last_commit_info(path)
+            print(f" [{uid:<3}] | {data['title'][:15]:<15} | {info}")
+
+        print(f"{'═'*80}")
         input("\nPresiona Enter para volver...")
 
     def run_tui(self):
@@ -84,6 +95,7 @@ class SynquorkOrchestrator:
             if choice == 'Q': break
             elif choice == 'S': self.show_stats()
             elif choice in self.assets: self.inspect_asset(choice)
+
 
 if __name__ == "__main__":
     orch = SynquorkOrchestrator()
