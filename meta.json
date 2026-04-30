@@ -1,14 +1,16 @@
 {
-  "id": "SQ-01",
-  "title": "Synquork Engine",
-  "codename": "Alpha 3.14",
-  "category": "Orchestration & Infrastructure",
-  "domain": "SYSTEMS / AUTOMATION",
-  "status": "active",
-  "status_label": "INTERNAL_LAB_SECURED",
-  "github_url": "https://github.com/MarcosBernardC/synquork",
-  "stack": ["Python 3.14", "Fish Shell", "JSON-RPC"],
-  "description": "Motor de orquestación de metadatos y gestión de ciclo de vida de activos de ingeniería para Bernard Lab.",
-  "visibility": "internal",
-  "internal_node": "InternalLabs"
-}
+      "id": "02",
+      "title": "Synquork",
+      "category": "Productivity",
+      "domain": ["SOFT", "WEB"],
+      "status": { "state": "active", "label": "Alpha 3.14" },
+      "environment": {
+        "os": "Fedora 42",
+        "desktop": "GNOME 48",
+        "shell": "zsh",
+        "last_update": "2025-11-20"
+      },
+      "github_url": "https://github.com/MarcosBernardC/trellix",
+      "stack": ["Javascript", "LocalStorage", "CSS3"],
+      "description": "Motor de gestión de tareas minimalistas."
+    }

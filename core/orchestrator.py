@@ -1,80 +1,61 @@
 import os
 import sys
-import subprocess
-
-# --- BOOTSTRAP ---
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
 from core.scanner import get_registered_assets, deep_scan
-from core.telemetry import get_last_commit_info 
+from core.telemetry import get_last_commit_info
 
 class SynquorkOrchestrator:
     def __init__(self):
         self.assets = get_registered_assets()
-        self.user_shell = os.environ.get("SHELL", "/bin/sh")
+        # Priorizamos fish como ingenieros electrónicos en Fedora
+        self.user_shell = "/usr/bin/fish" if os.path.exists("/usr/bin/fish") else os.environ.get("SHELL", "/bin/sh")
 
     def _inject_and_jump(self, path, title):
-        """Prepara el entorno y realiza la sustitución de proceso."""
+        """Inyecta variables de entorno y muta el proceso al shell del proyecto."""
         print(f"\n🚀 Saltando a {title}...")
-        
-        # 1. Preparar las variables de entorno
-        # Copiamos el entorno actual y añadimos nuestra etiqueta
         env = os.environ.copy()
         env["SYNQUORK_NESTED"] = "true"
         env["SYNQUORK_PROJECT"] = title
-
-        # 2. Cambiar directorio
-        os.chdir(path)
-
-        # 3. Informar al usuario sobre el estado del Shell
-        print(f"💡 Info: Terminal vinculada a Synquork. Escribe 'exit' para cerrar panel.")
         
-        # 4. MUTAR (os.execvpe permite pasar las nuevas variables de entorno)
-        # Usamos execvpe para que el Shell reciba la variable SYNQUORK_NESTED
-        os.execvpe(self.user_shell, [self.user_shell], env)
+        try:
+            os.chdir(path)
+            os.execvpe(self.user_shell, [self.user_shell], env)
+        except Exception as e:
+            print(f"❌ Error al saltar: {e}")
+            input("Presiona Enter para continuar...")
 
     def inspect_asset(self, asset_id):
         asset = self.assets[asset_id]
-        path = asset['path']
-
         while True:
             print("\033[H\033[J", end="")
-            print(f"\n{'─'*50}")
-            print(f" 📂 PROYECTO: {asset['title'].upper()}")
-            print(f" 📍 RUTA:     {path}")
-            print(f"{'─'*50}")
-            print("\n [G] Jump: MUTAR proceso y activar Label")
-            print(" [B] Back: Volver")
 
+            # Solo es LAB si github_url existe pero es explícitamente None o nulo
+            # Si tiene un string con una URL, es un proyecto público.
+            url = asset.get('github_url')
+            is_lab = " [INTERNAL LAB]" if url is None else ""
+            
+            status = asset.get('status', {})
+
+            print(f"\n{'─'*60}")
+            # Dentro de core/orchestrator.py -> inspect_asset()
+            print(f" 📂 PROYECTO: {asset['title'].upper()}{is_lab}")
+            if asset.get('lab_notice'):
+                print(f" 📢 NOTICE:   \033[1;33m{asset['lab_notice']}\033[0m") # Amarillo
+            print(f" 📍 ID:        {asset_id}")
+            # ... resto del print
+            print(f" 🏷️  STATUS:   {status.get('label', 'N/A')} ({status.get('state', 'unknown')})")
+            print(f" 🛠️  STACK:    {', '.join(asset.get('stack', []))}")
+            print(f" 📝 DESC:     {asset.get('description')}")
+            print(f"{'─'*60}")
+            
+            # ... resto del código (telemetría y inputs)
+            
+            print("\n [G] Jump (Muta Proceso)  [B] Back")
             op = input("\n Selección > ").strip().lower()
-
+            
             if op == 'g':
-                self._inject_and_jump(path, asset['title'])
-
-            if op == 'b':
+                self._inject_and_jump(asset['path'], asset['title'])
+            elif op == 'b':
                 break
-
-# ... (show_stats y run_tui se mantienen igual que en la versión anterior) ...
-    def show_stats(self):
-        print("\033[H\033[J", end="")
-        print(f"\n{'═'*80}")
-        print(f"        TELEMETRÍA DE ACTIVOS - ÚLTIMOS LOGS")
-        print(f"{'═'*80}")
-        
-        # Cabecera de la tabla
-        print(f" {'ID':<6} | {'PROYECTO':<15} | {'HASH':<8} | {'FECHA':<10} | {'LOG'}")
-        print(f"{'─'*80}")
-
-        for uid, data in self.assets.items():
-            path = data['path']
-            # Llamamos a la telemetría real
-            info = get_last_commit_info(path)
-            print(f" [{uid:<3}] | {data['title'][:15]:<15} | {info}")
-
-        print(f"{'═'*80}")
-        input("\nPresiona Enter para volver...")
 
     def run_tui(self):
         while True:
@@ -82,35 +63,24 @@ class SynquorkOrchestrator:
             print(f"\n{'═'*50}")
             print(f"        SYNKORK TUI - BERNARD LAB")
             print(f"{'═'*50}")
-
-            for uid, data in self.assets.items():
-                print(f" [{uid}] {data['title'].ljust(25)}")
-
-            print(f"{'═'*50}")
-            # Cambiamos la leyenda para reflejar el nuevo comando
-            print(" [S] Deep Scan (Sync)  [T] Telemetry  [Q] Salir") 
-            print(f"{'═'*50}")
-
-            choice = input("\nID para gestionar > ").strip().upper()
             
-            if choice == 'Q': 
+            if not self.assets:
+                print(" [!] No hay activos. Usa [S] para escanear.")
+            else:
+                for uid, data in self.assets.items():
+                    print(f" [{uid}] {data['title'].ljust(25)}")
+            
+            print(f"{'═'*50}")
+            print(" [S] Deep Scan  [Q] Salir")
+            print(f"{'═'*50}")
+            
+            choice = input("\nID o Comando > ").strip().upper()
+            
+            if choice == 'Q':
                 break
-            elif choice == 'S': 
-                # Ejecuta el escaneo físico y actualiza el diccionario en memoria
-                print("\n🔍 Iniciando escaneo de laboratorios...")
-                self.assets = deep_scan() 
-                input("\nScan completo. Presiona Enter para refrescar lista...")
-            elif choice == 'T': 
-                # Movimos Telemetry a 'T' para liberar la 'S'
-                self.show_stats()
-            elif choice in self.assets: 
+            elif choice == 'S':
+                print("\n🔍 Iniciando escaneo en ~/")
+                self.assets = deep_scan()
+                input("\nScan completo. Enter para refrescar...")
+            elif choice in self.assets:
                 self.inspect_asset(choice)
-
-
-if __name__ == "__main__":
-    orch = SynquorkOrchestrator()
-    if len(sys.argv) > 1:
-        target_id = sys.argv[1].upper()
-        if target_id in orch.assets:
-            orch._inject_and_jump(orch.assets[target_id]['path'], orch.assets[target_id]['title'])
-    orch.run_tui()
