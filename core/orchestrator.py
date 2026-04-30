@@ -44,6 +44,11 @@ class SynquorkOrchestrator:
             print(f" 🛠️  STACK:     {', '.join(asset.get('stack', []))}")
             print(f" 📝 DESC:      {asset.get('description')}")
             print(f"{'─'*60}")
+            
+            # ... dentro de inspect_asset, cuando asset_id == "07"
+            if asset_id == "07":
+                from core.sync import check_portfolio_sync # Import dinámico para no ensuciar
+                check_portfolio_sync(self.assets)
 
             # --- LA FEATURE RECUPERADA: TELEMETRÍA ---
             # Llamamos a la función usando el path absoluto guardado en el registro
