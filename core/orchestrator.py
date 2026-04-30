@@ -28,30 +28,32 @@ class SynquorkOrchestrator:
         while True:
             print("\033[H\033[J", end="")
 
-            # Solo es LAB si github_url existe pero es explícitamente None o nulo
-            # Si tiene un string con una URL, es un proyecto público.
             url = asset.get('github_url')
             is_lab = " [INTERNAL LAB]" if url is None else ""
-            
             status = asset.get('status', {})
 
             print(f"\n{'─'*60}")
-            # Dentro de core/orchestrator.py -> inspect_asset()
             print(f" 📂 PROYECTO: {asset['title'].upper()}{is_lab}")
-            if asset.get('lab_notice'):
-                print(f" 📢 NOTICE:   \033[1;33m{asset['lab_notice']}\033[0m") # Amarillo
             print(f" 📍 ID:        {asset_id}")
-            # ... resto del print
-            print(f" 🏷️  STATUS:   {status.get('label', 'N/A')} ({status.get('state', 'unknown')})")
-            print(f" 🛠️  STACK:    {', '.join(asset.get('stack', []))}")
-            print(f" 📝 DESC:     {asset.get('description')}")
+            
+            # Recuperar el aviso dinámico
+            notice = asset.get('lab_notice', 'Operational')
+            print(f" 📢 NOTICE:    \033[1;33m{notice}\033[0m")
+            
+            print(f" 🏷️  STATUS:    {status.get('label', 'N/A')} ({status.get('state', 'unknown')})")
+            print(f" 🛠️  STACK:     {', '.join(asset.get('stack', []))}")
+            print(f" 📝 DESC:      {asset.get('description')}")
             print(f"{'─'*60}")
-            
-            # ... resto del código (telemetría y inputs)
-            
+
+            # --- LA FEATURE RECUPERADA: TELEMETRÍA ---
+            # Llamamos a la función usando el path absoluto guardado en el registro
+            last_log = get_last_commit_info(asset['path'])
+            print(f" 🕒 ÚLTIMO LOG: \033[1;32m{last_log}\033[0m") 
+            print(f"{'─'*60}")
+
             print("\n [G] Jump (Muta Proceso)  [B] Back")
             op = input("\n Selección > ").strip().lower()
-            
+
             if op == 'g':
                 self._inject_and_jump(asset['path'], asset['title'])
             elif op == 'b':
