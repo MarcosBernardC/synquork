@@ -14,19 +14,21 @@ class SynquorkOrchestrator:
         self.sync_msg = get_sync_status(self.assets)
 
     def _inject_and_jump(self, path, title):
-        # ... (se mantiene igual)
-        pass
+        """Cambia el directorio y lanza una nueva instancia de Fish."""
+        print(f"\n🚀 Saltando a: {title}...")
+        os.chdir(path)
+        # Usamos execvp para que Synquork sea reemplazado por la shell en ese path
+        os.execvp(self.user_shell, [self.user_shell])
 
     def inspect_asset(self, asset_id):
         asset = self.assets[asset_id]
         while True:
             print("\033[H\033[J", end="")
-            # ... (Lógica de impresión de metadata)
             print(f"--- DETALLES DEL ACTIVO: {asset['title']} ---")
             print(f" Categoría: {asset['category']}")
-            print(f" Ruta: {asset['path']}")
+            print(f" Ruta:      {asset['path']}")
+            print(f" Stack:     {', '.join(asset['stack'])}")
 
-            # El handshake detallado se queda aquí solo como información extendida
             if asset_id == "07":
                 from core.sync import check_portfolio_sync
                 check_portfolio_sync(self.assets)
@@ -34,15 +36,16 @@ class SynquorkOrchestrator:
             last_log = get_last_commit_info(asset['path'])
             print(f" 🕒 ÚLTIMO LOG: \033[1;32m{last_log}\033[0m")
 
-            # MANTENER ESTO DENTRO DEL WHILE
             print(f"\n{'─'*50}")
-            print(" [B] Volver al menú principal")
+            print(" [G] Go (Abrir Terminal)   [B] Volver")
             print(f"{'─'*50}")
 
             choice = input("\nAcción > ").strip().upper()
 
-            if choice == 'B':
-                break  # Ahora sí está dentro del bucle
+            if choice == 'G':
+                self._inject_and_jump(asset['path'], asset['title'])
+            elif choice == 'B':
+                break
 
     def run_tui(self):
         while True:
@@ -68,8 +71,11 @@ class SynquorkOrchestrator:
             print(f"{'═'*50}")
             
             choice = input("\nID o Comando > ").strip().upper()
-            
+
             if choice == 'Q': break
+            elif choice.startswith('G') and choice[1:] in self.assets:
+                target = self.assets[choice[1:]]
+                self._inject_and_jump(target['path'], target['title'])
             elif choice == 'S':
                 print("\n🔍 Re-escaneando laboratorios...")
                 self.assets = deep_scan()
