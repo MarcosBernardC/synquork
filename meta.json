@@ -8,9 +8,9 @@
         "os": "Fedora 42",
         "desktop": "GNOME 48",
         "shell": "zsh",
-        "last_update": "2025-11-20"
+        "last_update": "2025-11-20 // 09:30 PET"
       },
       "github_url": "https://github.com/MarcosBernardC/trellix",
       "stack": ["Javascript", "LocalStorage", "CSS3"],
       "description": "Motor de gestión de tareas minimalistas."
-    }
+}
