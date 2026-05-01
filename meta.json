@@ -2,15 +2,24 @@
       "id": "02",
       "title": "Synquork",
       "category": "Productivity",
-      "domain": ["SOFT", "WEB"],
-      "status": { "state": "active", "label": "Alpha 3.14" },
-      "environment": {
-        "os": "Fedora 42",
-        "desktop": "GNOME 48",
-        "shell": "zsh",
-        "last_update": "2025-11-20 // 09:30 PET"
+      "domain": [
+        "CLI",
+        "Automation"
+      ],
+      "status": {
+        "state": "active",
+        "label": "TUI v2.0"
       },
-      "github_url": "https://github.com/MarcosBernardC/trellix",
-      "stack": ["Javascript", "LocalStorage", "CSS3"],
-      "description": "Motor de gestión de tareas minimalistas."
+      "environment": {
+        "os": "Fedora 43",
+        "shell": "fish",
+        "last_update": "2026-05-01 // 08:15 PET"
+      },
+      "github_url": "git@github.com:MarcosBernardC/synquork.git",
+      "stack": [
+        "Python",
+        "Fish",
+        "JSON"
+      ],
+      "description": "Orquestador de activos de ingeniería y motor de sincronización automatizada de portafolio."
 }
