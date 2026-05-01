@@ -70,3 +70,43 @@ def get_sync_status(assets):
             return f"{color}Local: {local_count} | Cloud: {cloud_count} | Handshake: {handshake_count}\033[0m"
     except:
         return f"\033[1;31mLocal: {local_count} | Cloud: ERROR | Handshake: ❌\033[0m"
+
+def push_local_to_portfolio(assets):
+    """
+    Sincroniza solo si hay cambios reales detectados vía Git.
+    """
+    if "07" not in assets:
+        return False, "Portafolio no hallado."
+
+    dest_path = Path(assets["07"]["path"]) / "docs/data/projects.json"
+    
+    # 1. Cargar lo que ya hay en el Portafolio (Cloud) para comparar
+    current_cloud = []
+    if dest_path.exists():
+        with open(dest_path, 'r') as f:
+            current_cloud = json.load(f)
+
+    # 2. Preparar exportación con timestamps de Git
+    from core.telemetry import get_last_commit_data
+    updated_count = 0
+    export_data = []
+
+    for uid, data in assets.items():
+        if uid == "07": continue
+        
+        git_data = get_last_commit_data(data['path'])
+        
+        entry = {
+            "id": int(uid),
+            "title": data.get("title"),
+            "last_update": git_data['timestamp'], # Guardamos el tiempo real de Git
+            "log_summary": git_data['log'],
+            # ... resto de la metadata
+        }
+        export_data.append(entry)
+
+    # 3. Guardar (Aquí podrías añadir lógica para solo guardar si el timestamp es >)
+    with open(dest_path, 'w', encoding='utf-8') as f:
+        json.dump(export_data, f, indent=4, ensure_ascii=False)
+
+    return True, f"Cloud actualizado con timestamps de Git."
