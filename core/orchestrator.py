@@ -46,12 +46,16 @@ class SynquorkOrchestrator:
 
     def run_tui(self):
         while True:
+            # Forzamos la actualización del estado en cada refresco de pantalla
+            self.sync_msg = get_sync_status(self.assets)
+            
             print("\033[H\033[J", end="")
-            print(f"\n{'═'*50}")
-            print(f"        SYNKORK TUI - BERNARD LAB")
-            # Mensaje minimalista de estado de sincronización
-            print(f"        Estado: {self.sync_msg}") 
-            print(f"{'═'*50}")
+            print(f"\n{'═'*55}")
+            print(f"         SYNKORK TUI - BERNARD LAB")
+            print(f"  Estado: {self.sync_msg}")
+            print(f"{'═'*55}")
+            
+            # ... (resto de la TUI)
             
             if not self.assets:
                 print(" [!] No hay activos. Usa [S] para escanear.")
