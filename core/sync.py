@@ -32,6 +32,43 @@ def push_local_to_portfolio(assets):
     dest_path = Path(assets["07"]["path"]) / "docs/data/projects.json"
     from core.telemetry import get_last_commit_data
 
+    # 1. Cargar datos existentes si el archivo ya existe
+    existing_data = {"metadata": {}, "projects": []}
+    if dest_path.exists():
+        try:
+            with open(dest_path, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+        except Exception as e:
+            print(f"⚠️ Error leyendo projects.json existente: {e}")
+
+    # 2. Preparar el mapa de proyectos para actualización rápida
+    # Usamos un dict {id: proyecto} para evitar duplicados
+    project_map = {p['id']: p for p in existing_data.get("projects", [])}
+
+    # 3. Handshake: Actualizar o insertar solo los activos detectados por Synquork
+    for uid, data in assets.items():
+        git_data = get_last_commit_data(data['path'])
+
+        entry = {
+            "id": uid,
+            "title": data.get("title"),
+            "category": data.get("category"),
+            "domain": data.get("domain", []),
+            "status": data.get("status"),
+            "environment": {
+                "os": data.get("environment", {}).get("os", "Fedora 43"),
+                "shell": "fish",
+                "last_update": git_data['time_str']
+            },
+            "github_url": data.get("github_url"),
+            "stack": data.get("stack", []),
+            "description": data.get("description")
+        }
+        
+        # Esto actualiza si existe el ID o lo crea si es nuevo
+        project_map[uid] = entry
+
+    # 4. Reconstruir la estructura final respetando la metadata global
     full_data = {
         "metadata": {
             "owner": "Marcos Bernard",
@@ -43,35 +80,15 @@ def push_local_to_portfolio(assets):
                 "env": ["Fedora 43", "Hyprland", "NVIM", "Tmux", "Fish", "Yazi"],
                 "docs": ["LuaLaTeX", "XeLaTeX", "Zathura"]
             },
-            "stats": {}
+            "stats": {"total_managed": len(project_map)}
         },
-        "projects": []
+        "projects": sorted(list(project_map.values()), key=lambda x: x['id'])
     }
-
-    for uid, data in assets.items():
-        git_data = get_last_commit_data(data['path'])
-
-        entry = {
-            "id": uid,
-            "title": data.get("title"),
-            "category": data.get("category"),
-            "domain": data.get("domain", []),
-            "status": data.get("status"), 
-            "environment": {
-                "os": data.get("environment", {}).get("os", "Fedora 43"),
-                "shell": "fish",
-                "last_update": git_data['time_str']
-            },
-            "github_url": data.get("github_url"),
-            "stack": data.get("stack", []),
-            "description": data.get("description")
-        }
-        full_data["projects"].append(entry)
 
     try:
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         with open(dest_path, 'w', encoding='utf-8') as f:
             json.dump(full_data, f, indent=2, ensure_ascii=False)
-        return True, "Handshake exitoso: projects.json actualizado en PET."
+        return True, "Sincronización circular completada: Datos locales fusionados."
     except Exception as e:
         return False, f"Error de escritura: {str(e)}"
