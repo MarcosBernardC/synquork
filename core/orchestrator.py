@@ -24,10 +24,13 @@ class SynquorkOrchestrator:
         asset = self.assets[asset_id]
         while True:
             print("\033[H\033[J", end="")
+            status_info = asset.get('status', {})
+            
             print(f"--- DETALLES DEL ACTIVO: {asset['title']} ---")
-            print(f" Categoría: {asset['category']}")
-            print(f" Ruta:      {asset['path']}")
-            print(f" Stack:     {', '.join(asset['stack'])}")
+            print(f" ID:         {asset_id} | {asset.get('visibility')}")
+            print(f" Estado:     {status_info.get('state')} ({status_info.get('label')})")
+            print(f" Categoría:  {asset['category']}")
+            print(f" Stack:      {', '.join(asset['stack'])}")
 
             if asset_id == "07":
                 from core.sync import check_portfolio_sync
@@ -52,7 +55,7 @@ class SynquorkOrchestrator:
             self.sync_msg = get_sync_status(self.assets)
             print("\033[H\033[J", end="")
             print(f"\n{'═'*65}")
-            print(f"          SYNKORK TUI - BERNARD LAB")
+            print(f"          SYNQUORK TUI - BERNARD LAB")
             print(f"  Estado: {self.sync_msg}")
             print(f"{'═'*65}")
 
