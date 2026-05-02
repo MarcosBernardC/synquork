@@ -2,24 +2,21 @@
       "id": "02",
       "title": "Synquork",
       "category": "Productivity",
-      "domain": [
-        "CLI",
-        "Automation"
-      ],
+      "visibility": "PUBLIC",
+      "domain": ["CLI", "Automation"],
       "status": {
-        "state": "active",
+        "state": "ACTIVE LABS",
         "label": "TUI v2.0"
       },
       "environment": {
         "os": "Fedora 43",
         "shell": "fish",
-        "last_update": "2026-05-01 // 08:15 PET"
+        "last_update": "2026-05-01 // 08:41 PET"
       },
-      "github_url": "git@github.com:MarcosBernardC/synquork.git",
-      "stack": [
-        "Python",
-        "Fish",
-        "JSON"
-      ],
-      "description": "Orquestador de activos de ingeniería y motor de sincronización automatizada de portafolio."
+      "links": {
+        "ssh": "git@github.com:MarcosBernardC/synquork.git",
+        "https": "https://github.com/MarcosBernardC/synquork"
+      },
+      "stack": ["Python", "Fish", "JSON"],
+      "description": "Orquestador de activos de ingeniería y motor de sincronización automatizada."
 }

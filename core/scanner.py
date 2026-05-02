@@ -44,21 +44,20 @@ def deep_scan(root_dir="~/"):
             try:
                 with open(meta_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    
-                    # Extraemos el ID del meta.json (obligatorio)
-                    asset_id = str(data.get("id")).zfill(2) # Normaliza "1" a "01"
-                    
+                    asset_id = str(data.get("id")).zfill(2)
+
                     if asset_id:
                         found_assets[asset_id] = {
                             "path": root,
                             "title": data.get("title", os.path.basename(root)),
                             "category": data.get("category", "N/A"),
-                            "status": data.get("status", {}),
-                            "stack": data.get("stack", []),
-                            "description": data.get("description", "Sin descripción."),
+                            "visibility": data.get("visibility", "PRIVATE"),  # Nuevo
                             "domain": data.get("domain", []),
-                            "github_url": data.get("github_url"),
-                            "lab_notice": data.get("lab_notice", "Operational")
+                            "status": data.get("status", {}),                 # Captura el objeto anidado
+                            "environment": data.get("environment", {}),       # Captura el objeto anidado
+                            "links": data.get("links", {}),                   # Captura el objeto anidado
+                            "stack": data.get("stack", []),
+                            "description": data.get("description", "Sin descripción.")
                         }
                         print(f" ✅ Activo hallado: {found_assets[asset_id]['title']} [{asset_id}]")
                 
