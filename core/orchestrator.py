@@ -149,7 +149,15 @@ class SynquorkOrchestrator:
             print(" [G] Go (Abrir Terminal)   [B] Volver")
             print(f"{'─'*50}")
 
+            # Purgar secuencias ANSI de mouse huérfanas antes del input
+            if sys.stdin.seekable():
+                sys.stdin.flush()
+
             choice = input("\nAcción > ").strip().upper()
+
+            # Evitar colapsos si la entrada intercepta basura del mouse
+            if not choice or choice.startswith('\033') or choice.startswith('^['):
+                continue
 
             if choice == 'G':
                 self._inject_and_jump(asset['path'], asset['title'])
