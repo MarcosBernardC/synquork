@@ -20,3 +20,4 @@ config_local.yaml
 
 config/registry.json
 **/__pycache__/
+diff.txt
