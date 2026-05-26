@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import os
 
-# Forzamos al intérprete a ver la raíz del proyecto
+# Forzamos al intérprete a ver la raíz del proyecto (Esto es la clave)
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
