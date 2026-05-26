@@ -100,10 +100,10 @@ class SynquorkOrchestrator:
         while True:
             self.sync_msg = get_sync_status(self.assets)
             print("\033[H\033[J", end="")
-            print(f"\n{'═'*65}")
+            print(f"\n{'═'*73}")
             print(f"          SYNQUORK TUI - BERNARD LAB")
             print(f"  Estado: {self.sync_msg}")
-            print(f"{'═'*65}")
+            print(f"{'═'*73}")
 
             if not self.assets:
                 print(" [!] No hay activos.")
@@ -111,9 +111,18 @@ class SynquorkOrchestrator:
                 for uid, data in self.assets.items():
                     # Obtener telemetría fresca para el listado
                     tele = get_last_commit_data(data['path'])
-                    # Mostramos solo la parte del log que tiene la fecha/hora
-                    log_preview = tele['log'][:30]
-                    print(f" [{uid}] {log_preview.ljust(32)} | {data['title']}")
+
+                    # Extraemos los datos independientes
+                    fecha = tele.get('commit_date', "01-Ene-2026 00:00")
+                    msg_clean = tele.get('commit_msg', "⚠️ Sin registros")
+                    titulo_raw = data.get('title', "Sin título")
+
+                    # Recortes estandarizados y alineaciones
+                    msg_preview = msg_clean[:22].ljust(22)
+                    titulo_preview = titulo_raw[:20].ljust(20) # <--- NUEVO RECORTE FIJO
+
+                    # Estructura perfectamente alineada (Ancho total de línea: 75 caracteres)
+                    print(f" [{uid}] {fecha} | {msg_preview} | {titulo_preview}")
 
             print(f"{'═'*65}")
             print(" [S] Re-Scan    [P] Push to Cloud    [Q] Salir")
