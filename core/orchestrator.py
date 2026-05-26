@@ -17,7 +17,7 @@ class SynquorkOrchestrator:
         )
         self.sync_msg = get_sync_status(self.assets)
 
-    # ──────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────
     def _inject_and_jump(self, path, title):
         """Cambia al directorio del activo y abre una sesión flow anidada sin romper el proceso padre."""
         os.chdir(path)
@@ -88,11 +88,12 @@ class SynquorkOrchestrator:
                 editor_cmd = f"v {candidates[0]}" if candidates else "v ."
                 subprocess.run(["tmux", "send-keys", "-t", p0, editor_cmd, "Enter"])
 
-            # ANIDAMIENTO EFICIENTE: Saltamos a la sesión de trabajo y dejamos a Python 
-            # esperando en segundo plano controlado. Cuando 'flow exit' envíe el 'exit' 
-            # simulado al padre, este subproceso terminará limpiamente devolviendo el control a la TUI.
+            # RETORNO LIMPIO: Saltamos a la sesión de trabajo. Al salir con 'flow exit',
+            # Tmux nos devuelve aquí. Eliminamos la shell interactiva huérfana para evitar el Ctrl+C.
             subprocess.run(["tmux", "switch-client", "-t", session_name])
-            subprocess.run([self.user_shell, "-i"]) 
+            
+            # Forzamos una limpieza de terminal al regresar para sanar el buffer visual
+            print("\033[H\033[J", end="")
 
         # ── CASO 2: fuera de tmux (arranque directo) ──────────────────────
         else:
