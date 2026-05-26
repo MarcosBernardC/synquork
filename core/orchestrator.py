@@ -19,7 +19,7 @@ class SynquorkOrchestrator:
 
     # ──────────────────────────────────────────────────────────────────────
     def _inject_and_jump(self, path, title):
-        """Cambia al directorio del activo y abre una sesión flow anidada."""
+        """Cambia al directorio del activo y abre una sesión flow anidada sin romper el proceso padre."""
         os.chdir(path)
         os.environ["SYNQUORK_ENV"] = title
 
@@ -62,10 +62,10 @@ class SynquorkOrchestrator:
                     "-t", f"{session_name}:0.1", "-c", path, "-p", "50"
                 ], check=True)
 
-                # Activar venv en todos los paneles si existe
+                # Activar venv y adjuntar carga de flow.fish en todos los paneles si existe
                 venv_cmd = (
-                    "if test -f .venv/bin/activate.fish; "
-                    "source .venv/bin/activate.fish; end"
+                    "if test -f .venv/bin/activate.fish; source .venv/bin/activate.fish; end; "
+                    "if test -f flow.fish; source flow.fish; end"
                 )
                 panes = subprocess.check_output(
                     ["tmux", "list-panes", "-t", session_name, "-F", "#{pane_id}"],
@@ -88,8 +88,11 @@ class SynquorkOrchestrator:
                 editor_cmd = f"v {candidates[0]}" if candidates else "v ."
                 subprocess.run(["tmux", "send-keys", "-t", p0, editor_cmd, "Enter"])
 
-            # Saltar limpiamente a la sesión flow
-            os.execvp("tmux", ["tmux", "switch-client", "-t", session_name])
+            # ANIDAMIENTO EFICIENTE: Saltamos a la sesión de trabajo y dejamos a Python 
+            # esperando en segundo plano controlado. Cuando 'flow exit' envíe el 'exit' 
+            # simulado al padre, este subproceso terminará limpiamente devolviendo el control a la TUI.
+            subprocess.run(["tmux", "switch-client", "-t", session_name])
+            subprocess.run([self.user_shell, "-i"]) 
 
         # ── CASO 2: fuera de tmux (arranque directo) ──────────────────────
         else:
@@ -116,14 +119,16 @@ class SynquorkOrchestrator:
                     "select-pane", "-t", f"{session_name}:0.1", ";",
                     "attach-session", "-t", session_name
                 ]
-                os.execvp("tmux", tmux_cmd)
+                
+                # Sincronía fuera de tmux: Mantiene la TUI viva en RAM esperando que salgas de Tmux
+                subprocess.run(tmux_cmd)
             else:
                 banner_cmd = (
-                    f"echo -e '\\n\\033[1;36m"
-                    f"[ Estado: Dentro de Synquork ({title}) ]"
-                    f"\\033[0m\\n'"
+                    f"echo -e '\\n\\033[1;36m[ Estado: Dentro de Synquork ({title}) ]\\033[0m\\n'; "
+                    f"if test -f flow.fish; source flow.fish; end"
                 )
-                os.execvp(self.user_shell, [self.user_shell, "-C", banner_cmd])
+                # Sincronía pura en Shell: Ejecuta la shell hija y congela el script principal
+                subprocess.run([self.user_shell, "-C", banner_cmd])
 
     # ──────────────────────────────────────────────────────────────────────
     def inspect_asset(self, asset_id):
