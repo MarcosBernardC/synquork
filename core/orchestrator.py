@@ -1,77 +1,137 @@
 import os
 import sys
+import glob
+import subprocess
 from core.scanner import get_registered_assets, deep_scan
 from core.telemetry import get_last_commit_data
-from core.sync import get_sync_status  # Nueva función ligera
+from core.sync import get_sync_status
+
 
 class SynquorkOrchestrator:
     def __init__(self):
-        # 1. Carga o Escaneo inicial
-        self.assets = get_registered_assets()
-        self.user_shell = "/usr/bin/fish" if os.path.exists("/usr/bin/fish") else os.environ.get("SHELL", "/bin/sh")
-        
-        # 2. Verificación de sincronización minimalista al iniciar
+        self.assets    = get_registered_assets()
+        self.user_shell = (
+            "/usr/bin/fish"
+            if os.path.exists("/usr/bin/fish")
+            else os.environ.get("SHELL", "/bin/sh")
+        )
         self.sync_msg = get_sync_status(self.assets)
- 
+
+    # ──────────────────────────────────────────────────────────────────────
     def _inject_and_jump(self, path, title):
-        """Cambia el directorio, abre Fish y maneja un banner del tamaño mínimo absoluto."""
+        """Cambia al directorio del activo y abre una sesión flow anidada."""
         os.chdir(path)
-        
         os.environ["SYNQUORK_ENV"] = title
-        # Quitamos el emoji inicial para ahorrar espacio horizontal si la terminal es pequeña
-        banner_text = f" Estado: Dentro de Synquork ({title}) "
 
-        # Caso 1: YA ESTÁS DENTRO DE TMUX
+        # ── CASO 1: dentro de tmux (origen: TUI de Synquork) ──────────────
         if "TMUX" in os.environ:
-            import subprocess
-            
-            current_pane = os.environ.get("TMUX_PANE", "")
-            
-            # CAMBIO CLAVE: Usa "-l 1" para forzar a que el panel mida EXACTAMENTE 1 línea de alto.
-            # Usamos "echo -n" para evitar que el salto de línea genere scroll o espacios vacíos.
-            tmux_split_cmd = [
-                "tmux", "split-window", "-vb", "-t", current_pane, "-l", "1", "-P", "-F", "#{pane_id}",
-                f"echo -n -e '\\033[1;30;46m{banner_text:^50}\\033[0m'; tail -f /dev/null"
-            ]
-            
-            # Ejecutamos la división y capturamos el ID del banner
-            result = subprocess.run(tmux_split_cmd, capture_output=True, text=True)
-            banner_pane_id = result.stdout.strip()
-            
-            # Aseguramos el foco de vuelta en tu panel de trabajo
-            subprocess.run(["tmux", "select-pane", "-t", current_pane])
-            
-            # Lanzamos tu Fish Shell operativa
-            subprocess.run([self.user_shell])
-            
-            # Al salir con exit, eliminamos el banner de 1 línea instantáneamente
-            subprocess.run(["tmux", "kill-pane", "-t", banner_pane_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            current_session = subprocess.check_output(
+                ["tmux", "display-message", "-p", "#S"], text=True
+            ).strip()
 
-        # Caso 2: ESTÁS FUERA DE TMUX
+            session_name = f"flow_{os.path.basename(path)}"
+
+            if subprocess.run(
+                ["tmux", "has-session", "-t", session_name],
+                capture_output=True
+            ).returncode != 0:
+                # Dimensiones del cliente actual
+                cols = subprocess.check_output(["tput", "cols"],  text=True).strip()
+                rows = subprocess.check_output(["tput", "lines"], text=True).strip()
+
+                subprocess.run([
+                    "tmux", "new-session", "-d",
+                    "-s", session_name, "-c", path,
+                    "-x", cols, "-y", rows
+                ], check=True)
+
+                # Registrar sesión padre donde flow-exit la leerá
+                subprocess.run([
+                    "tmux", "set-environment",
+                    "-t", session_name,
+                    "SYNQUORK_PARENT_SESSION", current_session
+                ], check=True)
+
+                # Layout estándar: 3 paneles (espeja flow.fish)
+                subprocess.run([
+                    "tmux", "split-window", "-h",
+                    "-t", session_name, "-c", path, "-p", "36"
+                ], check=True)
+                subprocess.run([
+                    "tmux", "split-window", "-v",
+                    "-t", f"{session_name}:0.1", "-c", path, "-p", "50"
+                ], check=True)
+
+                # Activar venv en todos los paneles si existe
+                venv_cmd = (
+                    "if test -f .venv/bin/activate.fish; "
+                    "source .venv/bin/activate.fish; end"
+                )
+                panes = subprocess.check_output(
+                    ["tmux", "list-panes", "-t", session_name, "-F", "#{pane_id}"],
+                    text=True
+                ).strip().splitlines()
+
+                for pane_id in panes:
+                    subprocess.run([
+                        "tmux", "send-keys", "-t", pane_id,
+                        f"{venv_cmd}; clear", "Enter"
+                    ])
+
+                # Abrir editor en panel 0
+                p0         = panes[0]
+                candidates = (
+                    glob.glob(os.path.join(path, "*.py"))  +
+                    glob.glob(os.path.join(path, "*.tex")) +
+                    glob.glob(os.path.join(path, "*.md"))
+                )
+                editor_cmd = f"v {candidates[0]}" if candidates else "v ."
+                subprocess.run(["tmux", "send-keys", "-t", p0, editor_cmd, "Enter"])
+
+            # Saltar limpiamente a la sesión flow
+            os.execvp("tmux", ["tmux", "switch-client", "-t", session_name])
+
+        # ── CASO 2: fuera de tmux (arranque directo) ──────────────────────
         else:
-            import shutil
+            import shutil, time
+
             if shutil.which("tmux"):
-                import time
                 session_name = f"synquork_{int(time.time())}"
-                # Aquí también aplicamos "-l 1" para mantener la consistencia
+                try:
+                    total_cols = int(
+                        subprocess.check_output(["tput", "cols"], text=True).strip()
+                    )
+                except Exception:
+                    total_cols = 80
+
+                banner_clean = f" Estado: Dentro de Synquork ({title}) ".center(total_cols)
+                raw_banner   = f"\\033[1;30;46m{banner_clean}\\033[0m"
+
                 tmux_cmd = [
-                    "tmux", "new-session", "-d", "-s", session_name, f"exec {self.user_shell}", ";",
-                    "split-window", "-vb", "-t", session_name, "-l", "1", f"echo -n -e '\\033[1;30;46m{banner_text:^50}\\033[0m'; tail -f /dev/null", ";",
+                    "tmux", "new-session", "-d", "-s", session_name,
+                    f"exec {self.user_shell}", ";",
+                    "split-window", "-v", "-b", "-l", "1", "-t", session_name,
+                    f"exec sh -c \"echo -n -e '{raw_banner}'; tail -f /dev/null\"", ";",
                     "set-option", "-t", session_name, "status", "off", ";",
                     "select-pane", "-t", f"{session_name}:0.1", ";",
                     "attach-session", "-t", session_name
                 ]
                 os.execvp("tmux", tmux_cmd)
             else:
-                banner_cmd = f"echo -e '\\n\\033[1;36m[ Estado: Dentro de Synquork ({title}) ]\\033[0m\\n'"
+                banner_cmd = (
+                    f"echo -e '\\n\\033[1;36m"
+                    f"[ Estado: Dentro de Synquork ({title}) ]"
+                    f"\\033[0m\\n'"
+                )
                 os.execvp(self.user_shell, [self.user_shell, "-C", banner_cmd])
 
+    # ──────────────────────────────────────────────────────────────────────
     def inspect_asset(self, asset_id):
         asset = self.assets[asset_id]
         while True:
             print("\033[H\033[J", end="")
             status_info = asset.get('status', {})
-            
+
             print(f"--- DETALLES DEL ACTIVO: {asset['title']} ---")
             print(f" ID:         {asset_id} | {asset.get('visibility')}")
             print(f" Estado:     {status_info.get('state')} ({status_info.get('label')})")
@@ -96,6 +156,7 @@ class SynquorkOrchestrator:
             elif choice == 'B':
                 break
 
+    # ──────────────────────────────────────────────────────────────────────
     def run_tui(self):
         while True:
             self.sync_msg = get_sync_status(self.assets)
@@ -109,45 +170,35 @@ class SynquorkOrchestrator:
                 print(" [!] No hay activos.")
             else:
                 for uid, data in self.assets.items():
-                    # Obtener telemetría fresca para el listado
-                    tele = get_last_commit_data(data['path'])
-
-                    # Extraemos los datos independientes
-                    fecha = tele.get('commit_date', "01-Ene-2026 00:00")
-                    msg_clean = tele.get('commit_msg', "⚠️ Sin registros")
-                    titulo_raw = data.get('title', "Sin título")
-
-                    # Recortes estandarizados y alineaciones
-                    msg_preview = msg_clean[:22].ljust(22)
-                    titulo_preview = titulo_raw[:20].ljust(20) # <--- NUEVO RECORTE FIJO
-
-                    # Estructura perfectamente alineada (Ancho total de línea: 75 caracteres)
+                    tele          = get_last_commit_data(data['path'])
+                    fecha         = tele.get('commit_date', "01-Ene-2026 00:00")
+                    msg_clean     = tele.get('commit_msg',  "⚠️ Sin registros")
+                    titulo_raw    = data.get('title',        "Sin título")
+                    msg_preview   = msg_clean[:22].ljust(22)
+                    titulo_preview = titulo_raw[:20].ljust(20)
                     print(f" [{uid}] {fecha} | {msg_preview} | {titulo_preview}")
 
-            print(f"{'═'*65}")
+            print(f"{'═'*73}")
             print(" [S] Re-Scan    [P] Push to Cloud    [Q] Salir")
-            print(f"{'═'*65}")
+            print(f"{'═'*73}")
 
             choice = input("\nID o Comando > ").strip().upper()
 
-            if choice == 'Q': break
+            if choice == 'Q':
+                break
             elif choice == 'P':
                 print("\n🚀 Sincronizando metadatos con el Portafolio...")
                 from core.sync import push_local_to_portfolio
                 success, msg = push_local_to_portfolio(self.assets)
-                if success:
-                    print(f" ✅ {msg}")
-                else:
-                    print(f" ❌ {msg}")
+                print(f" {'✅' if success else '❌'} {msg}")
                 input("\nPresiona Enter para continuar...")
-            # ... resto de la lógica (G, S, ID)
             elif choice.startswith('G') and choice[1:] in self.assets:
                 target = self.assets[choice[1:]]
                 self._inject_and_jump(target['path'], target['title'])
             elif choice == 'S':
                 print("\n🔍 Re-escaneando laboratorios...")
-                self.assets = deep_scan()
-                self.sync_msg = get_sync_status(self.assets) # Actualiza estado tras scan
+                self.assets   = deep_scan()
+                self.sync_msg = get_sync_status(self.assets)
                 input("\nScan completo. Enter para refrescar...")
             elif choice in self.assets:
                 self.inspect_asset(choice)
