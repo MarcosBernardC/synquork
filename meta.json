@@ -3,7 +3,10 @@
       "title": "Synquork",
       "category": "Productivity",
       "visibility": "PUBLIC",
-      "domain": ["CLI", "Automation"],
+      "domain": [
+        "SOFT",
+        "CLOUD"
+      ],
       "status": {
         "state": "ACTIVE LABS",
         "label": "TUI v2.0"
@@ -11,12 +14,17 @@
       "environment": {
         "os": "Fedora 43",
         "shell": "fish",
-        "last_update": "2026-05-01 // 08:41 PET"
+        "last_update": "2026-05-01 // 22:24 PET",
+        "last_commit_log": "22:24 | feat(sync): implementar diff visual, confirmación de usuario y push automático"
       },
       "links": {
         "ssh": "git@github.com:MarcosBernardC/synquork.git",
         "https": "https://github.com/MarcosBernardC/synquork"
       },
-      "stack": ["Python", "Fish", "JSON"],
+      "stack": [
+        "Python",
+        "Fish",
+        "JSON"
+      ],
       "description": "Orquestador de activos de ingeniería y motor de sincronización automatizada."
-}
+    }
