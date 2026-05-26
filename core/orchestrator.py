@@ -107,28 +107,24 @@ class SynquorkOrchestrator:
                 except Exception:
                     total_cols = 80
 
-                banner_clean = f" Estado: Dentro de Synquork ({title}) ".center(total_cols)
+                # SOLUCIÓN AL ANCHO: Dejamos un margen de -2 caracteres para que los bordes 
+                # de la ventana de Tmux no fuercen un salto de línea en pantallas de 212 de ancho
+                banner_clean = f" Estado: Dentro de Synquork ({title}) ".center(total_cols - 2)
                 raw_banner   = f"\\033[1;30;46m{banner_clean}\\033[0m"
 
                 tmux_cmd = [
                     "tmux", "new-session", "-d", "-s", session_name,
                     f"exec {self.user_shell}", ";",
-                    "split-window", "-v", "-b", "-l", "1", "-t", session_name,
-                    f"exec sh -c \"echo -n -e '{raw_banner}'; tail -f /dev/null\"", ";",
+                    # Cambiamos "-l 1" por "-p 3" (3% de la altura total de la pantalla)
+                    # Esto garantiza un espacio pequeño y controlado sin importar el ancho horizontal
+                    "split-window", "-v", "-b", "-p", "3", "-t", session_name,
+                    f"exec sh -c \"printf '{raw_banner}'; tail -f /dev/null\"", ";",
                     "set-option", "-t", session_name, "status", "off", ";",
                     "select-pane", "-t", f"{session_name}:0.1", ";",
                     "attach-session", "-t", session_name
                 ]
                 
-                # Sincronía fuera de tmux: Mantiene la TUI viva en RAM esperando que salgas de Tmux
                 subprocess.run(tmux_cmd)
-            else:
-                banner_cmd = (
-                    f"echo -e '\\n\\033[1;36m[ Estado: Dentro de Synquork ({title}) ]\\033[0m\\n'; "
-                    f"if test -f flow.fish; source flow.fish; end"
-                )
-                # Sincronía pura en Shell: Ejecuta la shell hija y congela el script principal
-                subprocess.run([self.user_shell, "-C", banner_cmd])
 
     # ──────────────────────────────────────────────────────────────────────
     def inspect_asset(self, asset_id):
