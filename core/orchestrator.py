@@ -100,27 +100,25 @@ class SynquorkOrchestrator:
 
             if shutil.which("tmux"):
                 session_name = f"synquork_{int(time.time())}"
-                try:
-                    total_cols = int(
-                        subprocess.check_output(["tput", "cols"], text=True).strip()
-                    )
-                except Exception:
-                    total_cols = 80
-
-                # SOLUCIÓN AL ANCHO: Dejamos un margen de -2 caracteres para que los bordes 
-                # de la ventana de Tmux no fuercen un salto de línea en pantallas de 212 de ancho
-                banner_clean = f" Estado: Dentro de Synquork ({title}) ".center(total_cols - 2)
-                raw_banner   = f"\\033[1;30;46m{banner_clean}\\033[0m"
+                banner_text = f"Estado: Dentro de Synquork ({title})"
 
                 tmux_cmd = [
-                    "tmux", "new-session", "-d", "-s", session_name,
-                    f"exec {self.user_shell}", ";",
-                    # Cambiamos "-l 1" por "-p 3" (3% de la altura total de la pantalla)
-                    # Esto garantiza un espacio pequeño y controlado sin importar el ancho horizontal
-                    "split-window", "-v", "-b", "-p", "3", "-t", session_name,
-                    f"exec sh -c \"printf '{raw_banner}'; tail -f /dev/null\"", ";",
-                    "set-option", "-t", session_name, "status", "off", ";",
-                    "select-pane", "-t", f"{session_name}:0.1", ";",
+                    "tmux", "new-session", "-d", "-s", session_name, f"exec {self.user_shell}", ";",
+                    # 1. Habilitamos la barra de estado
+                    "set-option", "-t", session_name, "status", "on", ";",
+                    # 2. La movemos a la parte superior (Sticky)
+                    "set-option", "-t", session_name, "status-position", "top", ";",
+                    # 3. Centramos el contenido de forma nativa
+                    "set-option", "-t", session_name, "status-justify", "centre", ";",
+                    # 4. Configuración de estilo (Fondo cian, texto negro/gris oscuro)
+                    "set-option", "-t", session_name, "status-style", "bg=cyan,fg=black,bold", ";",
+                    # 5. Formato del texto (Limpiamos los componentes por defecto de Tmux como el reloj/fecha)
+                    "set-option", "-t", session_name, "status-left", "", ";",
+                    "set-option", "-t", session_name, "status-right", "", ";",
+                    "set-option", "-t", session_name, "status-left-length", "0", ";",
+                    "set-option", "-t", session_name, "status-right-length", "0", ";",
+                    # 6. Inyectamos tu título
+                    "set-option", "-t", session_name, "window-status-current-format", banner_text, ";",
                     "attach-session", "-t", session_name
                 ]
                 
