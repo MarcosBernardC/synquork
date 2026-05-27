@@ -112,7 +112,7 @@ class SynquorkOrchestrator:
                     # 3. Centramos el contenido de forma nativa
                     "set-option", "-t", session_name, "status-justify", "centre", ";",
                     # 4. Configuración de estilo (Fondo cian, texto negro/gris oscuro)
-                    "set-option", "-t", session_name, "status-style", "bg=cyan,fg=black,bold", ";",
+                    "set-option", "-t", session_name, "status-style", "bg=colour235,fg=colour250,bold", ";",
                     # 5. Formato del texto (Limpiamos los componentes por defecto de Tmux como el reloj/fecha)
                     "set-option", "-t", session_name, "status-left", "", ";",
                     "set-option", "-t", session_name, "status-right", "", ";",
