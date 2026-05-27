@@ -170,19 +170,36 @@ class SynquorkOrchestrator:
             self.sync_msg = get_sync_status(self.assets)
             print("\033[H\033[J", end="")
             print(f"\n{'═'*73}")
-            print(f"          SYNQUORK TUI - BERNARD LAB")
+            print(f"         SYNQUORK TUI - BERNARD LAB")
             print(f"  Estado: {self.sync_msg}")
             print(f"{'═'*73}")
 
             if not self.assets:
                 print(" [!] No hay activos.")
             else:
+                # 1. Preparamos una lista de activos con su timestamp para ordenar
+                lista_ordenada = []
                 for uid, data in self.assets.items():
-                    tele          = get_last_commit_data(data['path'])
-                    fecha         = tele.get('commit_date', "01-Ene-2026 00:00")
-                    msg_clean     = tele.get('commit_msg',  "⚠️ Sin registros")
-                    titulo_raw    = data.get('title',        "Sin título")
-                    msg_preview   = msg_clean[:22].ljust(22)
+                    tele = get_last_commit_data(data['path'])
+                    lista_ordenada.append({
+                        "uid": uid,
+                        "data": data,
+                        "tele": tele,
+                        "ts": tele.get('timestamp', 0)
+                    })
+
+                # 2. Ordenamos: reverse=True pone el timestamp más alto (más nuevo) al principio
+                lista_ordenada.sort(key=lambda x: x['ts'], reverse=True)
+
+                # 3. Imprimimos la lista ya ordenada
+                for item in lista_ordenada:
+                    uid = item['uid']
+                    tele = item['tele']
+                    fecha = tele.get('commit_date', "01-Ene-2026 00:00")
+                    msg_clean = tele.get('commit_msg', "⚠️ Sin registros")
+                    titulo_raw = item['data'].get('title', "Sin título")
+                    
+                    msg_preview = msg_clean[:22].ljust(22)
                     titulo_preview = titulo_raw[:20].ljust(20)
                     print(f" [{uid}] {fecha} | {msg_preview} | {titulo_preview}")
 
