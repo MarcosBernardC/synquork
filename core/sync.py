@@ -46,37 +46,75 @@ def _generate_diff(old_json_path, new_data):
     except Exception as e:
         return f"❌ Error generando diff: {e}"
 
+def check_git_status(repo_path):
+    """
+    Retorna True si el repositorio tiene cambios locales sin guardar
+    (untracked, modified, o staged), de lo contrario False.
+    """
+    try:
+        # --porcelain da una salida limpia y estable ideal para scripts
+        res = subprocess.check_output(
+            ["git", "-C", str(repo_path), "status", "--porcelain"],
+            text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        return len(res) > 0
+    except Exception:
+        return False
+
 def get_sync_status(assets):
     """
     Función ligera para el header de la TUI.
-    Verifica si el archivo projects.json existe y su antigüedad.
+    Verifica si el archivo projects.json existe, su antigüedad y alertas de Git.
     """
     if "07" not in assets:
         return "⚠️ Portafolio no registrado"
-    
-    dest_path = Path(assets["07"]["path"]) / "docs/data/projects.json"
-    
+
+    portfolio_path = Path(assets["07"]["path"])
+    dest_path = portfolio_path / "docs/data/projects.json"
+
     if not dest_path.exists():
         return "❌ Desincronizado (projects.json missing)"
-    
-    # Podríamos comparar hashes, pero por ahora usamos mtime para velocidad
+
+    # NUEVO: Alerta temprana de código sin guardar en el Portafolio
+    if check_git_status(portfolio_path):
+        return "⚠️ ALERTA: Portafolio con cambios locales sin consolidar en Git"
+
     mtime = datetime.fromtimestamp(dest_path.stat().st_mtime, tz=timezone(timedelta(hours=-5)))
     return f"✅ Sincronizado ({mtime.strftime('%H:%M')} PET)"
 
 def check_portfolio_sync(assets):
     """Verificación detallada para el modo inspección."""
-    print(f"🔍 Validando integridad en: {assets['07']['path']}")
-    # Aquí puedes añadir lógica de diff de git si lo deseas en el futuro
-
-def push_local_to_portfolio(assets):
     if "07" not in assets:
-        return False, "Portafolio no hallado en el registro."
+        return
 
     portfolio_path = Path(assets["07"]["path"])
-    dest_path = portfolio_path / "docs/data/projects.json"
+    print(f"🔍 Validando integridad en: {portfolio_path}")
+    
+    try:
+        # Obtenemos el listado detallado estilo porcelain
+        status_raw = subprocess.check_output(
+            ["git", "-C", str(portfolio_path), "status", "--porcelain"],
+            text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        
+        if status_raw:
+            print("\n \033[1;33m⚠️ ADVERTENCIA: Tienes cambios locales sin guardar en el Portafolio:\033[0m")
+            for line in status_raw.splitlines():
+                print(f"   ↳ {line}")
+            print(" \033[1;36m💡 Recomendación:\033[0m Haz 'git add' y 'git commit' en el portafolio antes de sincronizar.")
+        else:
+            print(" ✨ Git Working Tree: Limpio e impecable.")
+            
+    except Exception as e:
+        print(f" ❌ No se pudo verificar el estado de Git: {e}")
+
+# core/sync.py
+# (Mantén tus imports y las funciones _generate_diff y get_sync_status intactas)
+
+def build_portfolio_dataset(assets, dest_path):
+    """Genera el diccionario estructurado v2 unificando assets y telemetría."""
     from core.telemetry import get_last_commit_data
 
-    # --- Lógica de carga y fusión de datos ---
     existing_data = {"metadata": {}, "projects": []}
     if dest_path.exists():
         try:
@@ -90,7 +128,7 @@ def push_local_to_portfolio(assets):
     for uid, data in assets.items():
         git_data = get_last_commit_data(data['path'])
         raw_status = data.get("status", {})
-        raw_links = data.get("links", {})
+        raw_repo = data.get("repository", {})
         raw_env = data.get("environment", {})
 
         entry = {
@@ -98,33 +136,34 @@ def push_local_to_portfolio(assets):
             "title": data.get("title"),
             "category": data.get("category"),
             "visibility": data.get("visibility", "PRIVATE"),
+            "tags": data.get("tags", ""),
             "domain": data.get("domain", []),
             "status": {
-                "state": raw_status.get("state", "ACTIVE LABS"),
-                "label": raw_status.get("label", "Alpha")
+                "activity": raw_status.get("activity", "ACTIVE"),
+                "maturity": raw_status.get("maturity", "ALPHA"),
+                "version": raw_status.get("version", "0.1.0"),
+                "progress_pct": raw_status.get("progress_pct", 0),
+                "scopes": raw_status.get("scopes", {})
             },
             "environment": {
                 "os": raw_env.get("os", "Fedora 43"),
-                "shell": raw_env.get("shell", "fish"),
-                "last_update": git_data['time_str'],
-                "last_commit_log": git_data['log'] # <--- CAMBIO AQUÍ: Usar 'log' en lugar de 'messag'
+                "shell": raw_env.get("shell", "fish")
             },
-            "links": {
-                "ssh": raw_links.get("ssh", ""),
-                "https": raw_links.get("https", ""),
-                "notice": raw_links.get("notice", "")
+            "repository": {
+                "ssh": raw_repo.get("ssh", ""),
+                "https": raw_repo.get("https", "")
             },
             "stack": data.get("stack", []),
-            "description": data.get("description")
+            "description": data.get("description"),
+            "_telemetry": {
+                "last_update": git_data['time_str'].split(" // ")[0],
+                "last_commit_log": git_data['commit_msg']
+            }
         }
-
-        if "notice" in entry["links"] and not entry["links"]["notice"]:
-            del entry["links"]["notice"]
-
         project_map[uid] = entry
 
     now_pet = datetime.now(timezone(timedelta(hours=-5)))
-    full_data = {
+    return {
         "metadata": {
             "owner": "Marcos Bernard",
             "global_status": "Operational",
@@ -133,49 +172,78 @@ def push_local_to_portfolio(assets):
             "stats": {"total_managed": len(project_map)}
         },
         "projects": sorted(list(project_map.values()), key=lambda x: x['id'])
-    }
+    }, now_pet
 
-    # --- NUEVA LÓGICA DE INSPECCIÓN (DIFF) ---
-    print("\n" + "="*50)
-    print("📋 INSPECCIÓN DE CAMBIOS (DIFF)")
-    print("="*50)
+
+def push_local(assets):
+    """Fase 1: Construye, muestra DIFF y escribe el JSON localmente exponiendo rutas."""
+    if "07" not in assets:
+        return False, "Portafolio no hallado en el registro."
+
+    portfolio_path = Path(assets["07"]["path"]).resolve()
+    dest_path = (portfolio_path / "docs/data/projects.json").resolve()
+
+    # Compilamos la estructura en memoria
+    full_data, now_pet = build_portfolio_dataset(assets, dest_path)
+
+    print("\n" + "="*60)
+    print("🔬 MODO DEBUGGER: SEGUIMIENTO DE ESCRITURA LOCAL")
+    print("="*60)
+    print(f" 📂 Directorio raíz detectado : {portfolio_path}")
+    print(f" 📝 Archivo objetivo de salida: {dest_path}")
+    print(f" 📊 Cantidad de assets en RAM : {len(assets)} laboratorios")
+    print("="*60)
+    print("📋 INSPECCIÓN DE CAMBIOS LOCALES (DIFF)")
+    print("="*60)
+    
+    # Esto te mostrará si hay cambios reales en los strings o solo formateo
     print(_generate_diff(dest_path, full_data))
-    print("="*50)
+    print("="*60)
 
-    confirm = input("\n¿Aplicar y subir cambios a la nube? [s/N] > ").strip().lower()
+    confirm = input("\n¿Aplicar cambios al archivo local projects.json? [s/N] > ").strip().lower()
     if confirm != 's':
-        return False, "Sincronización abortada por el usuario."
+        return False, "Operación local abortada."
 
-    # --- Escritura y Push (Solo si el usuario confirmó) ---
     try:
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         with open(dest_path, 'w', encoding='utf-8') as f:
             json.dump(full_data, f, indent=2, ensure_ascii=False)
-
-        commit_msg = f"chore(sync): auto-update project states {now_pet.strftime('%H:%M')} PET"
-        git_success, git_msg = _git_commit_and_push(portfolio_path, commit_msg)
-
-        if git_success:
-            return True, f"Sincronización total: Local -> JSON -> GitHub OK."
-        else:
-            return False, f"JSON guardado, pero falló el Push: {git_msg}"
-
+        
+        return True, f"Modificación exitosa -> {dest_path.name} actualizado offline."
     except Exception as e:
-        return False, f"Error crítico: {str(e)}"
+        return False, f"Error crítico escribiendo en {dest_path}: {str(e)}"
+
+
+def push_to_cloud(assets):
+    """Fase 2: Realiza el ciclo Git sobre el estado actual del JSON."""
+    if "07" not in assets:
+        return False, "Portafolio no hallado en el registro."
+
+    portfolio_path = Path(assets["07"]["path"])
+    dest_path = portfolio_path / "docs/data/projects.json"
+
+    if not dest_path.exists():
+        return False, "No existe projects.json local. Corre [L] primero."
+
+    confirm = input("\n¿Sincronizar y hacer push a GitHub? [s/N] > ").strip().lower()
+    if confirm != 's':
+        return False, "Push cancelado."
+
+    now_pet = datetime.now(timezone(timedelta(hours=-5)))
+    commit_msg = f"chore(sync): auto-update project states {now_pet.strftime('%H:%M')} PET"
+    
+    git_success, git_msg = _git_commit_and_push(portfolio_path, commit_msg)
+    if git_success:
+        return True, "Sincronización remota: GitHub OK."
+    return False, f"Fallo en el Push: {git_msg}"
+
 
 def _git_commit_and_push(repo_path, message):
     """Ejecuta el ciclo de Git: add, commit y push."""
     try:
-        # 1. git add docs/data/projects.json
         subprocess.run(["git", "-C", str(repo_path), "add", "docs/data/projects.json"], check=True)
-        
-        # 2. git commit -m "..."
-        # Usamos --allow-empty por si no hay cambios reales, evitar que el script explote
         subprocess.run(["git", "-C", str(repo_path), "commit", "-m", message], check=True)
-        
-        # 3. git push
         subprocess.run(["git", "-C", str(repo_path), "push"], check=True)
-        
         return True, "Cloud Update: Success"
     except subprocess.CalledProcessError as e:
         return False, f"Git Error: {e}"

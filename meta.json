@@ -1,30 +1,13 @@
 {
-      "id": "02",
-      "title": "Synquork",
-      "category": "Productivity",
-      "visibility": "PUBLIC",
-      "domain": [
-        "SOFT",
-        "CLOUD"
-      ],
-      "status": {
-        "state": "ACTIVE LABS",
-        "label": "TUI v2.0"
-      },
-      "environment": {
-        "os": "Fedora 43",
-        "shell": "fish",
-        "last_update": "2026-05-01 // 22:24 PET",
-        "last_commit_log": "22:24 | feat(sync): implementar diff visual, confirmación de usuario y push automático"
-      },
-      "links": {
-        "ssh": "git@github.com:MarcosBernardC/synquork.git",
-        "https": "https://github.com/MarcosBernardC/synquork"
-      },
-      "stack": [
-        "Python",
-        "Fish",
-        "JSON"
-      ],
-      "description": "Orquestador de activos de ingeniería y motor de sincronización automatizada."
-    }
+    "id": "02",
+    "title": "Synquork",
+    "category": "Productivity",
+    "visibility": "PUBLIC",
+    "tags": "SOFTWARE",
+    "status": { "activity": "ACTIVE", "maturity": "BETA", "version": "0.1.0", "progress_pct": 50, "scopes": { "core": { "status": "BETA", "progress": 50 } } },
+    "environment": { "os": "Fedora 43", "shell": "fish" },
+    "repository": { "ssh": "git@github.com:MarcosBernardC/synquork.git", "https": "https://github.com/MarcosBernardC/synquork" },
+    "stack": ["Python", "Fish", "JSON"],
+    "description": "Orquestador de activos de ingeniería.",
+    "_telemetry": { "last_update": "2026-05-27", "last_commit_log": "style(tui): cambiar color del banner", "changelog": [{ "version": "0.1.0", "date": "2026-05-27", "summary": "Estructura inicial." }] }
+}

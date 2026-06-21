@@ -133,8 +133,9 @@ class SynquorkOrchestrator:
             status_info = asset.get('status', {})
 
             print(f"--- DETALLES DEL ACTIVO: {asset['title']} ---")
-            print(f" ID:         {asset_id} | {asset.get('visibility')}")
-            print(f" Estado:     {status_info.get('state')} ({status_info.get('label')})")
+            print(f" ID:         {asset_id} | {asset.get('visibility')} | Tag: {asset.get('tags')}")
+            print(f" Estado:     {status_info.get('activity', 'N/A')} | Madurez: {status_info.get('maturity', 'ALPHA')} ({status_info.get('progress_pct', 0)}%)")
+            print(f" Versión:    v{status_info.get('version', '0.1.0')}")
             print(f" Categoría:  {asset['category']}")
             print(f" Stack:      {', '.join(asset['stack'])}")
 
@@ -149,13 +150,11 @@ class SynquorkOrchestrator:
             print(" [G] Go (Abrir Terminal)   [B] Volver")
             print(f"{'─'*50}")
 
-            # Purgar secuencias ANSI de mouse huérfanas antes del input
             if sys.stdin.seekable():
                 sys.stdin.flush()
 
             choice = input("\nAcción > ").strip().upper()
 
-            # Evitar colapsos si la entrada intercepta basura del mouse
             if not choice or choice.startswith('\033') or choice.startswith('^['):
                 continue
 
@@ -203,18 +202,24 @@ class SynquorkOrchestrator:
                     titulo_preview = titulo_raw[:20].ljust(20)
                     print(f" [{uid}] {fecha} | {msg_preview} | {titulo_preview}")
 
-            print(f"{'═'*73}")
-            print(" [S] Re-Scan    [P] Push to Cloud    [Q] Salir")
+            # Modifica el bloque visual de opciones de la TUI dentro de core/orchestrator.py print(f"{'═'*73}")
+            print(" [S] Re-Scan    [L] Push Local    [P] Push to Cloud    [Q] Salir")
             print(f"{'═'*73}")
 
             choice = input("\nID o Comando > ").strip().upper()
 
             if choice == 'Q':
                 break
+            elif choice == 'L':
+                print("\n📦 Compilando metadatos de laboratorios...")
+                from core.sync import push_local
+                success, msg = push_local(self.assets)
+                print(f" {'✅' if success else '❌'} {msg}")
+                input("\nPresiona Enter para continuar...")
             elif choice == 'P':
-                print("\n🚀 Sincronizando metadatos con el Portafolio...")
-                from core.sync import push_local_to_portfolio
-                success, msg = push_local_to_portfolio(self.assets)
+                print("\n🚀 Preparando despliegue cloud...")
+                from core.sync import push_to_cloud
+                success, msg = push_to_cloud(self.assets)
                 print(f" {'✅' if success else '❌'} {msg}")
                 input("\nPresiona Enter para continuar...")
             elif choice.startswith('G') and choice[1:] in self.assets:
