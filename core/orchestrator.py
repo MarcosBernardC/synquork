@@ -6,6 +6,14 @@ from core.scanner import get_registered_assets, deep_scan
 from core.telemetry import get_last_commit_data
 from core.sync import get_sync_status
 
+MATURITY_WEIGHTS = {
+    "PROTOTYPE": 0.5,
+    "ALPHA": 1.0,
+    "BETA": 2.0,
+    "STABLE": 3.0,
+    "PROD": 3.0,
+    "RELEASE": 3.0
+}
 
 class SynquorkOrchestrator:
     def __init__(self):
@@ -15,6 +23,14 @@ class SynquorkOrchestrator:
             if os.path.exists("/usr/bin/fish")
             else os.environ.get("SHELL", "/bin/sh")
         )
+        # NUEVO: Forzar cálculo e inyección de progresos en RAM al arrancar la app
+        if "07" in self.assets:
+            from pathlib import Path
+            from core.sync import build_portfolio_dataset
+            dummy_path = Path(self.assets["07"]["path"]) / "docs/data/projects.json"
+            # Llama a build_portfolio_dataset para mutar el diccionario assets en RAM con los cálculos correctos
+            _, _ = build_portfolio_dataset(self.assets, dummy_path)
+            
         self.sync_msg = get_sync_status(self.assets)
 
 # ──────────────────────────────────────────────────────────────────────
